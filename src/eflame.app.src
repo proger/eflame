@@ -1,0 +1,12 @@
+{application, eflame,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { eflame_app, []}},
+  {env, []}
+ ]}.
