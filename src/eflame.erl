@@ -8,8 +8,14 @@ apply(M, F, A) ->
     ?MODULE:apply("stacks.out", M, F, A).
 
 apply(OutputFile, M, F, A) ->
-    Tracer = spawn(fun() -> fprof_dump_listener(dict:new()) end),
-    fprof:apply(M, F, A, [{tracer, Tracer}]),
+    Tracer = spawn(fun() -> trace_listener(dict:new()) end),
+
+    MatchSpec = [{'_', [], [{message, {{cp, {caller}}}}]}],
+    erlang:trace_pattern(on_load, MatchSpec, [local]),
+    erlang:trace_pattern({'_', '_', '_'}, MatchSpec, [local]),
+    erlang:trace(self(), true, [{tracer, Tracer} | trace_flags(normal_with_children)]),
+    erlang:apply(M, F, A),
+    erlang:trace(self(), false, [all]),
 
     Tracer ! {dump, self()},
     PS = receive
@@ -22,7 +28,14 @@ apply(OutputFile, M, F, A) ->
     ok = file:write_file(OutputFile, Bytes),
     PS.
 
-fprof_dump_listener(State) ->
+trace_flags(normal) ->
+    [call, arity, return_to, timestamp];
+trace_flags(normal_with_children) ->
+    [call, arity, return_to, timestamp, set_on_spawn];
+trace_flags(like_fprof) -> % fprof does this as 'normal'
+    [call, return_to, running, procs, garbage_collection, arity, timestamp, set_on_spawn].
+
+trace_listener(State) ->
     receive
         {dump, Pid} ->
             Pid ! {stacks, dict:to_list(State)};
@@ -35,11 +48,11 @@ fprof_dump_listener(State) ->
                 error -> #dump{}
             end,
 
-            NewPidState = fprof_dump_proc_stream(Term, PidState),
+            NewPidState = trace_proc_stream(Term, PidState),
 
             D1 = dict:erase(PidS, State),
             D2 = dict:append(PidS, NewPidState, D1),
-            fprof_dump_listener(D2)
+            trace_listener(D2)
     end.
 
 us({Mega, Secs, Micro}) ->
@@ -59,19 +72,19 @@ new_state(#dump{us=Us, acc=Acc} = State, Stack, Ts) ->
             end
     end.
 
-fprof_dump_proc_stream({trace_ts, _Ps, call, MFA, {cp, CallerMFA}, Ts}, #dump{stack=[]} = State) ->
+trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, CallerMFA}, Ts}, #dump{stack=[]} = State) ->
     new_state(State, [MFA, CallerMFA], Ts);
 
-fprof_dump_proc_stream({trace_ts, _Ps, call, MFA, {cp, MFA}, Ts}, #dump{stack=[MFA|Stack]} = State) ->
+trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, MFA}, Ts}, #dump{stack=[MFA|Stack]} = State) ->
     new_state(State, [MFA|Stack], Ts); % collapse tail recursion
 
-fprof_dump_proc_stream({trace_ts, _Ps, call, MFA, {cp, CpMFA}, Ts}, #dump{stack=[CpMFA|Stack]} = State) ->
+trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, CpMFA}, Ts}, #dump{stack=[CpMFA|Stack]} = State) ->
     new_state(State, [MFA, CpMFA|Stack], Ts);
 
-fprof_dump_proc_stream({trace_ts, _Ps, call, _MFA, {cp, _}, _Ts} = TraceTs, #dump{stack=[_|StackRest]} = State) ->
-    fprof_dump_proc_stream(TraceTs, State#dump{stack=StackRest});
+trace_proc_stream({trace_ts, _Ps, call, _MFA, {cp, _}, _Ts} = TraceTs, #dump{stack=[_|StackRest]} = State) ->
+    trace_proc_stream(TraceTs, State#dump{stack=StackRest});
 
-fprof_dump_proc_stream({trace_ts, _Ps, T, _Args, _Ts} = TraceTs, State) ->
+trace_proc_stream({trace_ts, _Ps, T, _Args, _Ts} = TraceTs, State) ->
     case T of
         out -> ignore;
         in -> ignore;
@@ -79,19 +92,21 @@ fprof_dump_proc_stream({trace_ts, _Ps, T, _Args, _Ts} = TraceTs, State) ->
         gc_end -> ignore;
         getting_unlinked -> ignore;
         return_to -> ignore;
-        _ -> io:format("fprof_dump_proc_stream: unknown trace: ~p~n", [TraceTs])
+        spawn -> ignore;
+        exit -> ignore;
+        _ -> io:format("trace_proc_stream: unknown trace: ~p~n", [TraceTs])
     end,
     State;
 
-fprof_dump_proc_stream(TraceTs, State) ->
-    io:format("fprof_dump_proc_stream: unknown trace: ~p~n", [TraceTs]),
+trace_proc_stream(TraceTs, State) ->
+    io:format("trace_proc_stream: unknown trace: ~p~n", [TraceTs]),
     State.
 
 stack_collapse(Stack) ->
     intercalate(";", [[atom_to_binary(M, utf8), <<":">>, atom_to_binary(F, utf8), <<"/">>, integer_to_list(A)] || {M, F, A} <- Stack]).
 
 dump_to_iolist(Pid, #dump{acc=Acc}) ->
-    [[pid_to_list(Pid), <<";">>, stack_collapse(S), <<"\n">>] || S <- Acc].
+    [[pid_to_list(Pid), <<";">>, stack_collapse(S), <<"\n">>] || S <- lists:reverse(Acc)].
 
 intercalate(Sep, Xs) -> lists:concat(intersperse(Sep, Xs)).
 
