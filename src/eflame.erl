@@ -2,7 +2,7 @@
 -export([apply/3, apply/4]).
 
 -define(RESOLUTION, 1000). %% us
--record(dump, {stack=[], us=0, acc=[]}).
+-record(dump, {stack=[], us=0, acc=[]}). % per-process state
 
 apply(M, F, A) ->
     ?MODULE:apply("stacks.out", M, F, A).
@@ -65,9 +65,15 @@ new_state(#dump{us=Us, acc=Acc} = State, Stack, Ts) ->
     case Us of
         0 -> State#dump{us=UsTs, stack=Stack};
         _ when Us > 0 ->
-            case us(Ts) - Us of
-                X when X >= ?RESOLUTION ->
-                    State#dump{us=Us+?RESOLUTION, acc=[lists:reverse(Stack)|Acc], stack=Stack};
+            Diff = us(Ts) - Us,
+            NOverlaps = Diff div ?RESOLUTION,
+            Overlapped = NOverlaps * ?RESOLUTION,
+            %Rem = Diff - Overlapped,
+            case NOverlaps of
+                X when X >= 1 ->
+                    StackRev = lists:reverse(Stack),
+                    Stacks = [StackRev || _ <- lists:seq(1, NOverlaps)],
+                    State#dump{us=Us+Overlapped, acc=lists:append(Stacks, Acc), stack=Stack};
                 _ ->
                     State#dump{stack=Stack}
             end
