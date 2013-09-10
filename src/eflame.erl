@@ -80,7 +80,7 @@ new_state(#dump{us=Us, acc=Acc} = State, Stack, Ts) ->
     end.
 
 trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, CallerMFA}, Ts}, #dump{stack=[]} = State) ->
-    new_state(State, [MFA|case CallerMFA of {eflame, apply, _} -> []; X -> X end], Ts);
+    new_state(State, [MFA, CallerMFA], Ts);
 
 trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, MFA}, Ts}, #dump{stack=[MFA|Stack]} = State) ->
     new_state(State, [MFA|Stack], Ts); % collapse tail recursion
