@@ -15,3 +15,11 @@ $ open flame.svg
 
 * as stacks are collected through tracing, blocking calls appear like the process is actually working,
   this will change in the future.
+
+* unlike the reference implementation, `flamegraph.pl` does not sort the input to preserve the order of calls
+  (since this is possible due to current method of collecting stacks)
+
+```sh
+# this invocation preserves order of calls (unlike stack_to_flame.sh)
+$ grep 0.90.0 stacks.out | uniq -c | awk '{print $2, "", $1}' | env TITLE='rebar compile apps=eflame' deps/eflame/stack_to_flame.sh > flame.svg
+```

@@ -170,7 +170,7 @@ sub flow {
 my @Data = <>;
 my $last = "";
 my $time = 0;
-foreach (sort @Data) {
+foreach (@Data) {
 	chomp;
 	my ($stack, $samples) = (/^(.*)\s+(\d+)$/);
 	$stack =~ s/</(/g;
