@@ -23,6 +23,7 @@ apply(OutputFile, M, F, A) ->
     after 5000 ->
         timeout
     end,
+    exit(Tracer, normal),
 
     Bytes = iolist_to_binary([dump_to_iolist(Pid, Dump) || {Pid, [Dump]} <- PS]),
     ok = file:write_file(OutputFile, Bytes),
