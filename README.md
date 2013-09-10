@@ -23,3 +23,5 @@ $ open flame.svg
 # this invocation preserves order of calls (unlike stack_to_flame.sh)
 $ grep 0.90.0 stacks.out | uniq -c | awk '{print $2, "", $1}' | env TITLE='rebar compile apps=eflame' deps/eflame/stack_to_flame.sh > flame.svg
 ```
+
+![screenshot2](http://i.imgur.com/UG6W9G0.png)
