@@ -10,3 +10,8 @@ Usage example: https://github.com/proger/active/commit/81e7e40c9dc5a4666742636ea
 $ stack_to_flame.sh < stacks.out > flame.svg
 $ open flame.svg
 ```
+
+### Notes
+
+* as stacks are collected through tracing, blocking calls appear like the process is actually working,
+  this will change in the future.
