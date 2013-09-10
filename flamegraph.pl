@@ -58,6 +58,7 @@ my $imagewidth = 1280;		# max width, pixels
 my $frameheight = 16;		# max height is dynamic
 my $fontsize = 10;		# base text size
 my $minwidth = 0.1;		# min function width, pixels
+my $title = $ENV{TITLE} || "Flame Graph";
 
 # internals
 my $ypad1 = $fontsize * 4;	# pad top, include title
@@ -216,7 +217,7 @@ my ($white, $black, $vvdgrey, $vdgrey) = (
 	$im->colorAllocate(40, 40, 40),
 	$im->colorAllocate(160, 160, 160),
     );
-$im->stringTTF($black, $fonttype, $fontsize + 5, 0.0, int($imagewidth / 2), $fontsize * 2, "Flame Graph", "middle");
+$im->stringTTF($black, $fonttype, $fontsize + 5, 0.0, int($imagewidth / 2), $fontsize * 2, $title, "middle");
 $im->stringTTF($black, $fonttype, $fontsize, 0.0, $xpad, $imageheight - ($ypad2 / 2), 'Function:');
 $im->stringTTF($black, $fonttype, $fontsize, 0.0, $xpad + 60, $imageheight - ($ypad2 / 2), " ", "", 'id="details"');
 
@@ -248,7 +249,7 @@ foreach my $id (keys %Node) {
 	}
 	$im->filledRectangle($x1, $y1, $x2, $y2, color("hot"), 'rx="2" ry="2" onmouseover="s(' . "'$info'" . ')" onmouseout="c()"');
 
-	if ($width > 50) {
+	if ($width > 40) {
 		my $chars = int($width / (0.7 * $fontsize));
 		my $text = substr $func, 0, $chars;
 		$text .= ".." if $chars < length $func;
