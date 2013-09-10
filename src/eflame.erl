@@ -30,9 +30,9 @@ apply(OutputFile, M, F, A) ->
     PS.
 
 trace_flags(normal) ->
-    [call, arity, return_to, timestamp];
+    [call, arity, return_to, timestamp, running];
 trace_flags(normal_with_children) ->
-    [call, arity, return_to, timestamp, set_on_spawn];
+    [call, arity, return_to, timestamp, running, set_on_spawn];
 trace_flags(like_fprof) -> % fprof does this as 'normal'
     [call, return_to, running, procs, garbage_collection, arity, timestamp, set_on_spawn].
 
@@ -79,8 +79,11 @@ new_state(#dump{us=Us, acc=Acc} = State, Stack, Ts) ->
             end
     end.
 
-trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, CallerMFA}, Ts}, #dump{stack=[]} = State) ->
+trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, {_,_,_} = CallerMFA}, Ts}, #dump{stack=[]} = State) ->
     new_state(State, [MFA, CallerMFA], Ts);
+
+trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, undefined}, Ts}, #dump{stack=[]} = State) ->
+    new_state(State, [MFA], Ts);
 
 trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, MFA}, Ts}, #dump{stack=[MFA|Stack]} = State) ->
     new_state(State, [MFA|Stack], Ts); % collapse tail recursion
@@ -91,19 +94,20 @@ trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, CpMFA}, Ts}, #dump{stack=[CpMF
 trace_proc_stream({trace_ts, _Ps, call, _MFA, {cp, _}, _Ts} = TraceTs, #dump{stack=[_|StackRest]} = State) ->
     trace_proc_stream(TraceTs, State#dump{stack=StackRest});
 
-trace_proc_stream({trace_ts, _Ps, T, _Args, _Ts} = TraceTs, State) ->
-    case T of
-        out -> ignore;
-        in -> ignore;
-        gc_start -> ignore;
-        gc_end -> ignore;
-        getting_unlinked -> ignore;
-        return_to -> ignore;
-        spawn -> ignore;
-        exit -> ignore;
-        _ -> io:format("trace_proc_stream: unknown trace: ~p~n", [TraceTs])
-    end,
+trace_proc_stream({trace_ts, _Ps, return_to, MFA, Ts}, #dump{stack=[_Current, MFA|Stack]} = State) ->
+    new_state(State, [MFA|Stack], Ts); % do not try to traverse stack down because we've already collapsed it
+
+trace_proc_stream({trace_ts, _Ps, return_to, undefined, _Ts}, State) ->
     State;
+
+trace_proc_stream({trace_ts, _Ps, return_to, _, _Ts}, State) ->
+    State;
+
+trace_proc_stream({trace_ts, _Ps, in, _MFA, Ts}, #dump{stack=Stack} = State) ->
+    new_state(State, Stack, Ts);
+
+trace_proc_stream({trace_ts, _Ps, out, _MFA, Ts}, #dump{stack=Stack} = State) ->
+    new_state(State, Stack, Ts);
 
 trace_proc_stream(TraceTs, State) ->
     io:format("trace_proc_stream: unknown trace: ~p~n", [TraceTs]),
