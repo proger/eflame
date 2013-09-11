@@ -36,6 +36,8 @@ done
 $ deps/eflame/stacks_to_flames.sh stacks.out
 ```
 
+### More examples
+
 Of course you can also apply a bazillion of transformations to get a more understandable stack, for example:
 
 ```sh
