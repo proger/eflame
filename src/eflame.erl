@@ -8,26 +8,34 @@ apply(M, F, A) ->
     ?MODULE:apply(normal_with_children, "stacks.out", M, F, A).
 
 apply(Mode, OutputFile, M, F, A) ->
-    Tracer = spawn(fun() -> trace_listener(dict:new()) end),
+    Tracer = spawn_tracer(),
 
+    start_trace(Tracer, self(), Mode),
+    Return = (catch erlang:apply(M, F, A)),
+    {ok, Bytes} = stop_trace(Tracer, self()),
+
+    ok = file:write_file(OutputFile, Bytes),
+    Return.
+
+start_trace(Tracer, Target, Mode) ->
     MatchSpec = [{'_', [], [{message, {{cp, {caller}}}}]}],
     erlang:trace_pattern(on_load, MatchSpec, [local]),
     erlang:trace_pattern({'_', '_', '_'}, MatchSpec, [local]),
-    erlang:trace(self(), true, [{tracer, Tracer} | trace_flags(Mode)]),
-    Return = (catch erlang:apply(M, F, A)),
-    erlang:trace(self(), false, [all]),
+    erlang:trace(Target, true, [{tracer, Tracer} | trace_flags(Mode)]),
+    ok.
 
-    Tracer ! {dump, self()},
-    PS = receive
-        {stacks, X} -> X
-    after 5000 ->
-        timeout
+stop_trace(Tracer, Target) ->
+    erlang:trace(Target, false, [all]),
+    Tracer ! {dump_bytes, self()},
+
+    Ret = receive {bytes, B} -> {ok, B}
+    after 5000 -> {error, timeout}
     end,
-    exit(Tracer, normal),
 
-    Bytes = iolist_to_binary([dump_to_iolist(Pid, Dump) || {Pid, [Dump]} <- PS]),
-    ok = file:write_file(OutputFile, Bytes),
-    Return.
+    exit(Tracer, normal),
+    Ret.
+
+spawn_tracer() -> spawn(fun() -> trace_listener(dict:new()) end).
 
 trace_flags(normal) ->
     [call, arity, return_to, timestamp, running];
@@ -40,6 +48,9 @@ trace_listener(State) ->
     receive
         {dump, Pid} ->
             Pid ! {stacks, dict:to_list(State)};
+        {dump_bytes, Pid} ->
+            Bytes = iolist_to_binary([dump_to_iolist(TPid, Dump) || {TPid, [Dump]} <- dict:to_list(State)]),
+            Pid ! {bytes, Bytes};
         Term ->
             trace_ts = element(1, Term),
             PidS = element(2, Term),
