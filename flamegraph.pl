@@ -327,7 +327,7 @@ my $inc = <<INC;
 	</linearGradient>
 </defs>
 <style type="text/css">
-	.func_g:hover { stroke:black; stroke-width:0.5; }
+	.func_g:hover { stroke:#333; stroke-width:0.3; }
 </style>
 <script type="text/ecmascript">
 <![CDATA[
