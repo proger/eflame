@@ -14,7 +14,7 @@ apply(OutputFile, M, F, A) ->
     erlang:trace_pattern(on_load, MatchSpec, [local]),
     erlang:trace_pattern({'_', '_', '_'}, MatchSpec, [local]),
     erlang:trace(self(), true, [{tracer, Tracer} | trace_flags(normal_with_children)]),
-    erlang:apply(M, F, A),
+    Return = (catch erlang:apply(M, F, A)),
     erlang:trace(self(), false, [all]),
 
     Tracer ! {dump, self()},
@@ -27,7 +27,7 @@ apply(OutputFile, M, F, A) ->
 
     Bytes = iolist_to_binary([dump_to_iolist(Pid, Dump) || {Pid, [Dump]} <- PS]),
     ok = file:write_file(OutputFile, Bytes),
-    PS.
+    Return.
 
 trace_flags(normal) ->
     [call, arity, return_to, timestamp, running];
@@ -103,18 +103,26 @@ trace_proc_stream({trace_ts, _Ps, return_to, undefined, _Ts}, State) ->
 trace_proc_stream({trace_ts, _Ps, return_to, _, _Ts}, State) ->
     State;
 
+trace_proc_stream({trace_ts, _Ps, in, _MFA, Ts}, #dump{stack=[sleep|Stack]} = State) ->
+    new_state(new_state(State, [sleep|Stack], Ts), Stack, Ts);
+
 trace_proc_stream({trace_ts, _Ps, in, _MFA, Ts}, #dump{stack=Stack} = State) ->
     new_state(State, Stack, Ts);
 
 trace_proc_stream({trace_ts, _Ps, out, _MFA, Ts}, #dump{stack=Stack} = State) ->
-    new_state(State, Stack, Ts);
+    new_state(State, [sleep|Stack], Ts);
 
 trace_proc_stream(TraceTs, State) ->
     io:format("trace_proc_stream: unknown trace: ~p~n", [TraceTs]),
     State.
 
 stack_collapse(Stack) ->
-    intercalate(";", [[atom_to_binary(M, utf8), <<":">>, atom_to_binary(F, utf8), <<"/">>, integer_to_list(A)] || {M, F, A} <- Stack]).
+    intercalate(";", [entry_to_iolist(S) || S <- Stack]).
+
+entry_to_iolist({M, F, A}) ->
+    [atom_to_binary(M, utf8), <<":">>, atom_to_binary(F, utf8), <<"/">>, integer_to_list(A)];
+entry_to_iolist(A) when is_atom(A) ->
+    [atom_to_binary(A, utf8)].
 
 dump_to_iolist(Pid, #dump{acc=Acc}) ->
     [[pid_to_list(Pid), <<";">>, stack_collapse(S), <<"\n">>] || S <- lists:reverse(Acc)].
