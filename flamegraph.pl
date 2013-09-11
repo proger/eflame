@@ -220,16 +220,24 @@ SVG
 
 sub color {
 	my $type = shift;
-	if (defined $type and $type eq "hot") {
+	return "rgb(0,0,0)" unless defined $type;
+
+	if ($type eq "hot") {
 		my $r = 205 + int(rand(50));
 		my $g = 0 + int(rand(230));
 		my $b = 0 + int(rand(55));
 		return "rgb($r,$g,$b)";
 	}
-	if (defined $type and $type eq "mem") {
+	if ($type eq "mem") {
 		my $r = 0 + int(rand(0));
 		my $g = 190 + int(rand(50));
 		my $b = 0 + int(rand(230));
+		return "rgb($r,$g,$b)";
+	}
+	if ($type eq "blocked") {
+		my $r = 88;
+		my $g = 155;
+		my $b = 211;
 		return "rgb($r,$g,$b)";
 	}
 	return "rgb(0,0,0)";
@@ -377,7 +385,7 @@ while (my ($id, $node) = each %Node) {
         $nameattr->{title}       ||= $info;
         $im->group_start($nameattr);
 
-	$im->filledRectangle($x1, $y1, $x2, $y2, color($colors), 'rx="2" ry="2"');
+	$im->filledRectangle($x1, $y1, $x2, $y2, color($func eq "sleep" ? "blocked" : $colors), 'rx="2" ry="2"');
 
 	my $chars = int( ($x2 - $x1) / ($fontsize * $fontwidth));
 	if ($chars >= 3) { # room for one char plus two dots
