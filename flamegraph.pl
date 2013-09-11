@@ -244,6 +244,7 @@ sub color {
 }
 
 my %Node;
+my @NodeOrder;
 my %Tmp;
 
 sub flow {
@@ -265,6 +266,7 @@ sub flow {
 		# a unique ID is constructed from "func;depth;etime";
 		# func-depth isn't unique, it may be repeated later.
 		$Node{"$k;$v"}->{stime} = delete $Tmp{$k}->{stime};
+		push @NodeOrder, "$k;$v";
 		delete $Tmp{$k};
 	}
 
@@ -302,16 +304,17 @@ $timemax ||= $time;
 my $widthpertime = ($imagewidth - 2 * $xpad) / $timemax;
 my $minwidth_time = $minwidth / $widthpertime;
 
-# prune blocks that are too narrow and determine max depth
-while (my ($id, $node) = each %Node) {
+# determine max depth
+for my $id (@NodeOrder) {
 	my ($func, $depth, $etime) = split ";", $id;
-	my $stime = $node->{stime};
-	die "missing start for $id" if not defined $stime;
+	#my $node = $Node{$id};
+	#my $stime = $node->{stime};
+	#die "missing start for $id" if not defined $stime;
 
-	if (($etime-$stime) < $minwidth_time) {
-	    delete $Node{$id};
-	    next;
-	}
+	#if (($etime-$stime) < $minwidth_time) {
+	#    delete $Node{$id};
+	#    next;
+	#}
 	$depthmax = $depth if $depth > $depthmax;
 }
 
@@ -351,9 +354,16 @@ $im->stringTTF($black, $fonttype, $fontsize, 0.0, $xpad, $imageheight - ($ypad2 
 
 # Draw frames
 
-while (my ($id, $node) = each %Node) {
+for my $id (@NodeOrder) {
 	my ($func, $depth, $etime) = split ";", $id;
+	my $node = $Node{$id};
+	die "oops $node" unless $node;
 	my $stime = $node->{stime};
+
+	# ignore blocks that are too narrow
+	if (($etime-$stime) < $minwidth_time) {
+	    next;
+	}
 
 	$etime = $timemax if $func eq "" and $depth == 0;
 
