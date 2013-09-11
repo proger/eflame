@@ -61,6 +61,7 @@
 # 10-Sep-2011	Brendan Gregg	Created this.
 
 use strict;
+use POSIX;
 
 use Getopt::Long;
 
@@ -83,7 +84,7 @@ my $factor = 1;                 # factor to scale counts by
 
 GetOptions(
     'fonttype=s'   => \$fonttype,
-    'width=i'      => \$imagewidth,
+    'width=f'      => \$imagewidth,
     'height=i'     => \$frameheight,
     'fontsize=f'   => \$fontsize,
     'fontwidth=f'  => \$fontwidth,
@@ -109,6 +110,8 @@ USAGE: $0 [options] infile > outfile.svg\n
     eg,
 	$0 --title="Flame Graph: malloc()" trace.txt > graph.svg
 USAGE_END
+
+$imagewidth = ceil($imagewidth);
 
 # internals
 my $ypad1 = $fontsize * 4;	# pad top, include title
