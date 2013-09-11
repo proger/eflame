@@ -36,3 +36,22 @@ done
 $ deps/eflame/stacks_to_flames.sh stacks.out
 ```
 
+Of course you can also apply a bazillion of transformations to get a more understandable stack, for example:
+
+```sh
+$ grep 0.90.0 stacks.out | sort | uniq -c | sort -n -k1 | sort -k2 | awk '{print $2, "", $1}' > stacks.90
+$ perl -pi -e 's#eflame:apply/5;rebar_core:process_commands/2;##' stacks.90
+$ perl -pi -e 's#rebar_core:execute/.;##g' stacks.90
+$ perl -pi -e 's#rebar_core:process_dir.?/.;##g' stacks.90
+$ perl -pi -e 's#rebar_core:process_each/.;##g' stacks.90
+$ perl -pi -e 's#rebar_core:run_modules\w*/.;##g' stacks.90
+$ perl -pi -e 's#lists:\w+/.;##g' stacks.90
+$ perl -pi -e 's#/\d+;#;#g' stacks.90
+$ perl -pi -e 's#io_lib_pretty:[^;]+;##g' stacks.90
+$ cat stacks.90 | sort -k1 | deps/eflame/flamegraph.pl --width=1430 > flame.svg
+```
+
+The following picture is a cleaned flame graph for a run of `rebar compile` (using [active](https://github.com/proger/active))
+on a project with 15 dependencies where all files are already compiled:
+
+![rebar compile cleaned flame graph](http://i.imgur.com/hLXx7LO.png)
