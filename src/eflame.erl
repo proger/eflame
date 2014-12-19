@@ -1,21 +1,41 @@
 -module(eflame).
--export([apply/3, apply/5]).
+-export([apply/2,
+         apply/3,
+         apply/4,
+         apply/5]).
 
 -define(RESOLUTION, 1000). %% us
 -record(dump, {stack=[], us=0, acc=[]}). % per-process state
 
+-define(DEFAULT_MODE, normal_with_children).
+-define(DEFAULT_OUTPUT_FILE, "stacks.out").
+
+apply(F, A) ->
+    apply1(?DEFAULT_MODE, ?DEFAULT_OUTPUT_FILE, {F, A}).
+
 apply(M, F, A) ->
-    ?MODULE:apply(normal_with_children, "stacks.out", M, F, A).
+    apply1(?DEFAULT_MODE, ?DEFAULT_OUTPUT_FILE, {{M, F}, A}).
+
+apply(Mode, OutputFile, Fun, Args) ->
+    apply1(Mode, OutputFile, {Fun, Args}).
 
 apply(Mode, OutputFile, M, F, A) ->
+    apply1(Mode, OutputFile, {{M, F}, A}).
+
+apply1(Mode, OutputFile, {Fun, Args}) ->
     Tracer = spawn_tracer(),
 
     start_trace(Tracer, self(), Mode),
-    Return = (catch erlang:apply(M, F, A)),
+    Return = (catch apply_fun(Fun, Args)),
     {ok, Bytes} = stop_trace(Tracer, self()),
 
     ok = file:write_file(OutputFile, Bytes),
     Return.
+
+apply_fun({M, F}, A) ->
+    erlang:apply(M, F, A);
+apply_fun(F, A) ->
+    erlang:apply(F, A).
 
 start_trace(Tracer, Target, Mode) ->
     MatchSpec = [{'_', [], [{message, {{cp, {caller}}}}]}],

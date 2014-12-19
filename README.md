@@ -9,6 +9,8 @@ Usage example: https://github.com/proger/active/commit/81e7e40c9dc5a4666742636ea
 ```erlang
 > eflame:apply(normal_with_children, "stacks.out", my_module, awesome_calculation, []).
 > eflame:apply(my_module, awesome_calculation, []). % same as above
+> eflame:apply(fun my_module:awesome_calculation/0, []). % same as above
+> eflame:apply(fun awesome_calculation/0, []). % same as above, when called in my_module.erl
 > eflame:apply(normal, "stacks.out", my_module, awesome_calculation, []). % won't trace children
 ```
 
