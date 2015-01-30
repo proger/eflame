@@ -116,6 +116,12 @@ trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, {_,_,_} = CallerMFA}, Ts}, #du
 trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, undefined}, Ts}, #dump{stack=[]} = State) ->
     new_state(State, [MFA], Ts);
 
+trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, undefined}, Ts}, #dump{stack=[MFA|_] = Stack} = State) ->
+    new_state(State, Stack, Ts);
+
+trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, undefined}, Ts}, #dump{stack=Stack} = State) ->
+    new_state(State, [MFA | Stack], Ts);
+
 trace_proc_stream({trace_ts, _Ps, call, MFA, {cp, MFA}, Ts}, #dump{stack=[MFA|Stack]} = State) ->
     new_state(State, [MFA|Stack], Ts); % collapse tail recursion
 
