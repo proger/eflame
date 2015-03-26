@@ -4,6 +4,11 @@
 
 ![screenshot](http://i.imgur.com/XIDAcd3.png)
 
+Further development of `eflame` using proper stack sampling-based profiling and experimental Erlang
+tracing changes are available under [Scott Lystig Fritchie's](https://github.com/slfritchie/eflame) fork.
+It also contains [amazing peeks inside Riak](https://github.com/slfritchie/eflame/blob/master/README-Riak-Example.md).
+Make sure to check out his talk, [Actively Measuring And Profiling Erlang Code](http://www.snookles.com/erlang/ef2015/slf-presentation.html).
+
 Usage example: https://github.com/proger/active/commit/81e7e40c9dc5a4666742636ea4c5dfafc41508a5
 
 ```erlang
