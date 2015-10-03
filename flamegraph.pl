@@ -74,6 +74,7 @@
 use strict;
 
 use Getopt::Long;
+use POSIX;
 
 # tunables
 my $encoding;
@@ -104,7 +105,7 @@ my $titleinverted = "Icicle Graph";	#   "    "
 
 GetOptions(
 	'fonttype=s'  => \$fonttype,
-	'width=i'     => \$imagewidth,
+	'width=f'     => \$imagewidth,
 	'height=i'    => \$frameheight,
 	'encoding=s'  => \$encoding,
 	'fontsize=f'  => \$fontsize,
@@ -143,6 +144,8 @@ USAGE: $0 [options] infile > outfile.svg\n
 	eg,
 	$0 --title="Flame Graph: malloc()" trace.txt > graph.svg
 USAGE_END
+
+$imagewidth = ceil($imagewidth);
 
 # internals
 my $ypad1 = $fontsize * 4;      # pad top, include title
@@ -495,7 +498,7 @@ foreach (<>) {
 }
 
 # process and merge frames
-foreach (sort @Data) {
+foreach (reverse @Data) {
 	chomp;
 	# process: folded_stack count
 	# eg: func_a;func_b;func_c 31
@@ -814,6 +817,8 @@ while (my ($id, $node) = each %Node) {
 	my $color;
 	if ($func eq "-") {
 		$color = $vdgrey;
+        } elsif ($func =~ /sleep/ || $func eq "SLEEP") {
+                $color = color("blue", $hash, $func);
 	} elsif (defined $delta) {
 		$color = color_scale($delta, $maxdelta);
 	} elsif ($palette) {
