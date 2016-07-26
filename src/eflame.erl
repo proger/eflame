@@ -26,11 +26,14 @@ apply1(Mode, OutputFile, {Fun, Args}) ->
     Tracer = spawn_tracer(),
 
     start_trace(Tracer, self(), Mode),
-    Return = (catch apply_fun(Fun, Args)),
+
+    spawn_link(fun() -> apply_fun(Fun, Args) end),
+
+    timer:sleep(10000),
+
     {ok, Bytes} = stop_trace(Tracer, self()),
 
-    ok = file:write_file(OutputFile, Bytes),
-    Return.
+    ok = file:write_file(OutputFile, Bytes).
 
 apply_fun({M, F}, A) ->
     erlang:apply(M, F, A);
@@ -169,4 +172,3 @@ intercalate(Sep, Xs) -> lists:concat(intersperse(Sep, Xs)).
 intersperse(_, []) -> [];
 intersperse(_, [X]) -> [X];
 intersperse(Sep, [X | Xs]) -> [X, Sep | intersperse(Sep, Xs)].
-
