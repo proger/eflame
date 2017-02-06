@@ -6,9 +6,13 @@ defmodule Eflame.Mixfile do
      language: :erlang,
      name: "eflame",
      description: "Flame Graph profiler for Erlang and Elixir.",
-     version: "1.0.0",
+     version: "1.0.1",
      package: package(),
      deps: deps()]
+  end
+
+  def application do
+    [mod: {:eflame_app, []}]
   end
 
   defp deps do
