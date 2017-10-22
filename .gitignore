@@ -3,3 +3,4 @@ ebin/*
 *.svg
 *.out
 erl_crash.dump
+.rebar
