@@ -242,4 +242,4 @@ dump_to_iolist(PidList, [Stack | Rest], Result) ->
 
 -spec stack_to_iolist(string(), list()) -> iolist().
 stack_to_iolist(PidList, Stack) ->
-  [ PidList, <<";">>, stack_collapse(Stack), <<"\n">>].
+  [PidList, <<";">>, stack_collapse(Stack), <<"\n">>].
