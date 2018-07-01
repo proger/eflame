@@ -42,8 +42,8 @@ do_apply(Mode, OutputFile, {Fun, Args}) ->
 
   start_trace(Tracer, self(), Mode),
 
-  F   = build_fun(Fun, Args),
-  Ref = apply_fun(F, self()),
+  F      = build_fun(Fun, Args),
+  Ref    = apply_fun(F, self()),
   Result = wait_result(Ref, ?DEFAULT_TIMEOUT),
   {ok, Bytes} = stop_trace(Tracer, self()),
 
@@ -114,12 +114,10 @@ trace_listener(State0) ->
       IOList = [ dump_to_iolist(TPid, Dump#dump.acc)
                  || {TPid, Dump} <- maps:to_list(State0)
                ],
-      %% ?LOG("~p", [IOList]),
 
       Bytes = iolist_to_binary(IOList),
       Pid ! {bytes, Bytes};
     Term ->
-      %% ?LOG("~p~n", [Term]),
       trace_ts  = element(1, Term),
       Pid       = element(2, Term),
 
