@@ -131,7 +131,7 @@ trace_listener(State0) ->
   end.
 
 us({Mega, Secs, Micro}) ->
-  Mega * 1000 * 1000 * 1000 * 1000 + Secs * 1000 * 1000 + Micro.
+  Mega * 1000000000000 + Secs * 1000000 + Micro.
 
 new_state(#dump{us = 0} = State, Stack, Ts) ->
   UsTs = us(Ts),
