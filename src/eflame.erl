@@ -11,6 +11,9 @@
 -define(DEFAULT_MODE, normal_with_children).
 -define(DEFAULT_OUTPUT_FILE, "stacks.out").
 
+-define(LOG(Msg, Args), io:format(Msg, Args)).
+-define(LOG(Msg), ?LOG(Msg, [])).
+
 apply(F, A) ->
   apply1(?DEFAULT_MODE, ?DEFAULT_OUTPUT_FILE, {F, A}).
 
@@ -76,12 +79,14 @@ trace_listener(State0) ->
     {dump, Pid} ->
       Pid ! {stacks, State0};
     {dump_bytes, Pid} ->
+      ?LOG("Dumping bytes..."),
       IOList = [ dump_to_iolist(TPid, Dump)
                  || {TPid, [Dump]} <- maps:to_list(State0)
                ],
       Bytes = iolist_to_binary(IOList),
       Pid ! {bytes, Bytes};
     Term ->
+      ?LOG("Term: ~p", [Term]),
       trace_ts  = element(1, Term),
       Pid       = element(2, Term),
 
