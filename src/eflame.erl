@@ -144,10 +144,9 @@ new_state(#dump{us = Us, acc = Acc} = State, Stack, Ts) ->
   %% Rem = Diff - Overlapped,
   case NOverlaps >= 1 of
     true ->
-      StackRev = lists:reverse(Stack),
-      Stacks   = lists:duplicate(NOverlaps, StackRev),
+      %% ?LOG("Overlaps ~p~n", [NOverlaps]),
       State#dump{ us    = Us + Overlapped
-                , acc   = lists:append(Stacks, Acc)
+                , acc   = [{NOverlaps, Stack} | Acc]
                 , stack = Stack
                 };
     false ->
@@ -225,7 +224,7 @@ intersperse(_, [], Result)  ->
 intersperse(Sep, [X | Xs], [])  ->
   intersperse(Sep, Xs, [entry_to_iolist(X)]);
 intersperse(Sep, [X | Xs], Result) ->
-  intersperse(Sep, Xs, [Result, Sep, entry_to_iolist(X)]).
+  intersperse(Sep, Xs, [entry_to_iolist(X), Sep | Result]).
 
 dump_to_iolist(Pid, Stacks) ->
   PidList = pid_to_list(Pid),
@@ -233,6 +232,14 @@ dump_to_iolist(Pid, Stacks) ->
 
 dump_to_iolist(_PidList, [], Result) ->
   Result;
-dump_to_iolist(PidList, [X | Rest], Result) ->
-  Item = [ PidList, <<";">>, stack_collapse(X), <<"\n">>],
+dump_to_iolist(PidList, [{N, Stack} | Rest], Result) ->
+  Item  = stack_to_iolist(PidList, Stack),
+  Items = lists:duplicate(N, Item),
+  dump_to_iolist(PidList, Rest, [Items | Result]);
+dump_to_iolist(PidList, [Stack | Rest], Result) ->
+  Item = stack_to_iolist(PidList, Stack),
   dump_to_iolist(PidList, Rest, [Item | Result]).
+
+-spec stack_to_iolist(string(), list()) -> iolist().
+stack_to_iolist(PidList, Stack) ->
+  [ PidList, <<";">>, stack_collapse(Stack), <<"\n">>].
