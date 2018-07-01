@@ -206,8 +206,10 @@ trace_proc_stream(TraceTs, State) ->
   io:format("trace_proc_stream: unknown trace: ~p~n", [TraceTs]),
   State.
 
+%% Conversion to iolist()
+
 stack_collapse(Stack) ->
-  intercalate(";", [entry_to_iolist(S) || S <- Stack]).
+  intersperse(";", Stack, []).
 
 entry_to_iolist({M, F, A}) ->
   [ atom_to_binary(M, utf8), <<":">>
@@ -216,6 +218,13 @@ entry_to_iolist({M, F, A}) ->
   ];
 entry_to_iolist(A) when is_atom(A) ->
   [atom_to_binary(A, utf8)].
+
+intersperse(_, [], Result)  ->
+  Result;
+intersperse(Sep, [X | Xs], [])  ->
+  intersperse(Sep, Xs, [entry_to_iolist(X)]);
+intersperse(Sep, [X | Xs], Result) ->
+  intersperse(Sep, Xs, [Result, Sep, entry_to_iolist(X)]).
 
 dump_to_iolist(Pid, Stacks) ->
   PidList = pid_to_list(Pid),
@@ -226,9 +235,3 @@ dump_to_iolist(_PidList, [], Result) ->
 dump_to_iolist(PidList, [X | Rest], Result) ->
   Item = [ PidList, <<";">>, stack_collapse(X), <<"\n">>],
   dump_to_iolist(PidList, Rest, [Item | Result]).
-
-intercalate(Sep, Xs) -> lists:concat(intersperse(Sep, Xs)).
-
-intersperse(_, []) -> [];
-intersperse(_, [X]) -> [X];
-intersperse(Sep, [X | Xs]) -> [X, Sep | intersperse(Sep, Xs)].
