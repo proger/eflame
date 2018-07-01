@@ -133,24 +133,25 @@ trace_listener(State0) ->
 us({Mega, Secs, Micro}) ->
   Mega * 1000 * 1000 * 1000 * 1000 + Secs * 1000 * 1000 + Micro.
 
-new_state(#dump{us=Us, acc=Acc} = State, Stack, Ts) ->
-  %% io:format("new state: ~p ~p ~p~n", [Us, length(Stack), Ts]),
+new_state(#dump{us = 0} = State, Stack, Ts) ->
   UsTs = us(Ts),
-  case Us of
-    0 -> State#dump{us=UsTs, stack=Stack};
-    _ when Us > 0 ->
-      Diff = us(Ts) - Us,
-      NOverlaps = Diff div ?RESOLUTION,
-      Overlapped = NOverlaps * ?RESOLUTION,
-      %% Rem = Diff - Overlapped,
-      case NOverlaps of
-        X when X >= 1 ->
-          StackRev = lists:reverse(Stack),
-          Stacks = [StackRev || _ <- lists:seq(1, NOverlaps)],
-          State#dump{us=Us+Overlapped, acc=lists:append(Stacks, Acc), stack=Stack};
-        _ ->
-          State#dump{stack=Stack}
-      end
+  State#dump{us = UsTs, stack = Stack};
+new_state(#dump{us = Us, acc = Acc} = State, Stack, Ts) ->
+  %% io:format("new state: ~p ~p ~p~n", [Us, length(Stack), Ts]),
+  Diff       = us(Ts) - Us,
+  NOverlaps  = Diff div ?RESOLUTION,
+  Overlapped = NOverlaps * ?RESOLUTION,
+  %% Rem = Diff - Overlapped,
+  case NOverlaps >= 1 of
+    true ->
+      StackRev = lists:reverse(Stack),
+      Stacks   = lists:duplicate(NOverlaps, StackRev),
+      State#dump{ us    = Us + Overlapped
+                , acc   = lists:append(Stacks, Acc)
+                , stack = Stack
+                };
+    false ->
+      State#dump{stack = Stack}
   end.
 
 trace_proc_stream( {trace_ts, _Ps, call, MFA, {cp, {_,_,_} = CallerMFA}, Ts}
