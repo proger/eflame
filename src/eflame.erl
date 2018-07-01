@@ -111,7 +111,7 @@ trace_listener(State0) ->
       Pid ! {stacks, State0};
     {dump_bytes, Pid} ->
       ?LOG("Dumping bytes...~n"),
-      IOList = [ dump_to_iolist(TPid, Dump)
+      IOList = [ dump_to_iolist(TPid, Dump#dump.acc)
                  || {TPid, Dump} <- maps:to_list(State0)
                ],
       %% ?LOG("~p", [IOList]),
@@ -217,12 +217,15 @@ entry_to_iolist({M, F, A}) ->
 entry_to_iolist(A) when is_atom(A) ->
   [atom_to_binary(A, utf8)].
 
-dump_to_iolist(Pid, #dump{acc=Acc}) ->
-  [ [ pid_to_list(Pid), <<";">>
-    , stack_collapse(S), <<"\n">>
-    ]
-    || S <- lists:reverse(Acc)
-  ].
+dump_to_iolist(Pid, Stacks) ->
+  PidList = pid_to_list(Pid),
+  dump_to_iolist(PidList, Stacks, []).
+
+dump_to_iolist(_PidList, [], Result) ->
+  Result;
+dump_to_iolist(PidList, [X | Rest], Result) ->
+  Item = [ PidList, <<";">>, stack_collapse(X), <<"\n">>],
+  dump_to_iolist(PidList, Rest, [Item | Result]).
 
 intercalate(Sep, Xs) -> lists:concat(intersperse(Sep, Xs)).
 
