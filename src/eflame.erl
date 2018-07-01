@@ -10,36 +10,67 @@
 
 -define(DEFAULT_MODE, normal_with_children).
 -define(DEFAULT_OUTPUT_FILE, "stacks.out").
+-define(DEFAULT_TIMEOUT, 10000).
 
 -define(LOG(Msg, Args), io:format(Msg, Args)).
 -define(LOG(Msg), ?LOG(Msg, [])).
 
+-spec apply(function(), [any()]) -> any().
 apply(F, A) ->
-  apply1(?DEFAULT_MODE, ?DEFAULT_OUTPUT_FILE, {F, A}).
+  do_apply(?DEFAULT_MODE, ?DEFAULT_OUTPUT_FILE, {F, A}).
 
+-spec apply(module(), atom(), [any()]) -> any().
 apply(M, F, A) ->
-  apply1(?DEFAULT_MODE, ?DEFAULT_OUTPUT_FILE, {{M, F}, A}).
+  do_apply(?DEFAULT_MODE, ?DEFAULT_OUTPUT_FILE, {{M, F}, A}).
 
+-spec apply(atom(), string(), function(), [any()]) -> any().
 apply(Mode, OutputFile, Fun, Args) ->
-  apply1(Mode, OutputFile, {Fun, Args}).
+  do_apply(Mode, OutputFile, {Fun, Args}).
 
+-spec apply(atom(), string(), module(), atom(), [any()]) -> any().
 apply(Mode, OutputFile, M, F, A) ->
-  apply1(Mode, OutputFile, {{M, F}, A}).
+  do_apply(Mode, OutputFile, {{M, F}, A}).
 
-apply1(Mode, OutputFile, {Fun, Args}) ->
+%% =============================================================================
+%% Internal functions
+%% =============================================================================
+
+-spec do_apply(atom(), string(), {{module(), atom()} | function(), [any()]}) ->
+  {ok, any()} | timeout.
+do_apply(Mode, OutputFile, {Fun, Args}) ->
   Tracer = spawn_tracer(),
 
   start_trace(Tracer, self(), Mode),
-  Return = (catch apply_fun(Fun, Args)),
+
+  F   = build_fun(Fun, Args),
+  Ref = apply_fun(F, self()),
+  Result = wait_result(Ref, ?DEFAULT_TIMEOUT),
   {ok, Bytes} = stop_trace(Tracer, self()),
 
   ok = file:write_file(OutputFile, Bytes),
-  Return.
+  Result.
 
-apply_fun({M, F}, A) ->
-  erlang:apply(M, F, A);
-apply_fun(F, A) ->
-  erlang:apply(F, A).
+-spec wait_result(reference(), timeout()) -> {ok, any()} | timeout.
+wait_result(Ref, Timeout) ->
+  receive {Ref, Result} -> {ok, Result}
+  after Timeout -> timeout
+  end.
+
+-spec build_fun({module(), atom()} | function(), [any()]) -> function().
+build_fun({M, F}, A) ->
+  fun() -> erlang:apply(M, F, A) end;
+build_fun(F, A) ->
+  fun() -> erlang:apply(F, A) end.
+
+-spec apply_fun(function(), pid()) -> function().
+apply_fun(InnerFun, Pid) ->
+  Ref = make_ref(),
+  Fun = fun() ->
+            Result = InnerFun(),
+            Pid ! {Ref, Result}
+        end,
+  spawn_link(Fun),
+  Ref.
 
 start_trace(Tracer, Target, Mode) ->
   MatchSpec = [{'_', [], [{message, {{cp, {caller}}}}]}],
@@ -79,21 +110,23 @@ trace_listener(State0) ->
     {dump, Pid} ->
       Pid ! {stacks, State0};
     {dump_bytes, Pid} ->
-      ?LOG("Dumping bytes..."),
+      ?LOG("Dumping bytes...~n"),
       IOList = [ dump_to_iolist(TPid, Dump)
-                 || {TPid, [Dump]} <- maps:to_list(State0)
+                 || {TPid, Dump} <- maps:to_list(State0)
                ],
+      %% ?LOG("~p", [IOList]),
+
       Bytes = iolist_to_binary(IOList),
       Pid ! {bytes, Bytes};
     Term ->
-      ?LOG("Term: ~p", [Term]),
+      %% ?LOG("~p~n", [Term]),
       trace_ts  = element(1, Term),
       Pid       = element(2, Term),
 
       PidState0 = maps:get(Pid, State0, #dump{}),
       PidState1 = trace_proc_stream(Term, PidState0),
 
-      State1    = maps:put(Pid, State0, PidState1),
+      State1    = maps:put(Pid, PidState1, State0),
       trace_listener(State1)
   end.
 
@@ -172,6 +205,7 @@ trace_proc_stream( {trace_ts, _Ps, out, _MFA, Ts}
 trace_proc_stream(TraceTs, State) ->
   io:format("trace_proc_stream: unknown trace: ~p~n", [TraceTs]),
   State.
+
 stack_collapse(Stack) ->
   intercalate(";", [entry_to_iolist(S) || S <- Stack]).
 
