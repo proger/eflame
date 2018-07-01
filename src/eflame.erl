@@ -212,7 +212,7 @@ stack_collapse(Stack) ->
 entry_to_iolist({M, F, A}) ->
   [ atom_to_binary(M, utf8), <<":">>
   , atom_to_binary(F, utf8), <<"/">>
-  , integer_to_list(A)
+  , integer_to_binary(A)
   ];
 entry_to_iolist(A) when is_atom(A) ->
   [atom_to_binary(A, utf8)].
@@ -231,13 +231,11 @@ dump_to_iolist(Pid, Stacks) ->
 dump_to_iolist(_PidList, [], Result) ->
   Result;
 dump_to_iolist(PidList, [{N, Stack} | Rest], Result) ->
-  Item  = stack_to_iolist(PidList, Stack),
-  Items = lists:duplicate(N, Item),
-  dump_to_iolist(PidList, Rest, [Items | Result]);
-dump_to_iolist(PidList, [Stack | Rest], Result) ->
-  Item = stack_to_iolist(PidList, Stack),
+  Item  = stack_to_iolist(PidList, N, Stack),
   dump_to_iolist(PidList, Rest, [Item | Result]).
 
--spec stack_to_iolist(string(), list()) -> iolist().
-stack_to_iolist(PidList, Stack) ->
-  [PidList, <<";">>, stack_collapse(Stack), <<"\n">>].
+-spec stack_to_iolist(string(), integer(), list()) -> iolist().
+stack_to_iolist(PidList, N, Stack) ->
+  [ PidList, <<";">>, stack_collapse(Stack)
+  ,  <<" ">>, integer_to_binary(N)
+  , <<"\n">>].
