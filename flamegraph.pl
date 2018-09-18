@@ -797,6 +797,7 @@ while (my ($id, $node) = each %Node) {
 		$escaped_func =~ s/&/&amp;/g;
 		$escaped_func =~ s/</&lt;/g;
 		$escaped_func =~ s/>/&gt;/g;
+		$escaped_func =~ s/"//g;
 		unless (defined $delta) {
 			$info = "$escaped_func ($samples_txt $countname, $pct%)";
 		} else {
