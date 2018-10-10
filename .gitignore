@@ -1,3 +1,6 @@
+deps/
+_build/
+doc/
 *~
 ebin/*
 *.svg
