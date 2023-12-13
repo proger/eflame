@@ -1,33 +1,34 @@
 -module(eflame).
 -export([apply/2,
          apply/3,
-         apply/4,
-         apply/5]).
+         apply/4]).
 
 -define(RESOLUTION, 1000). %% us
 -record(dump, {stack=[], us=0, acc=[]}). % per-process state
 
 -define(DEFAULT_MODE, normal_with_children).
 -define(DEFAULT_OUTPUT_FILE, "stacks.out").
+-define(DEFAULT_OPTIONS, #{timeout => 5000, mode => ?DEFAULT_MODE, output_file => ?DEFAULT_OUTPUT_FILE}).
 
 apply(F, A) ->
-    apply1(?DEFAULT_MODE, ?DEFAULT_OUTPUT_FILE, {F, A}).
+    apply1({F, A}, ?DEFAULT_OPTIONS).
+
+apply(F, A, O) when is_map(O) ->
+    apply1({F, A}, O);
 
 apply(M, F, A) ->
-    apply1(?DEFAULT_MODE, ?DEFAULT_OUTPUT_FILE, {{M, F}, A}).
+    apply1({{M, F}, A}, ?DEFAULT_OPTIONS).
 
-apply(Mode, OutputFile, Fun, Args) ->
-    apply1(Mode, OutputFile, {Fun, Args}).
+apply(M, F, A, O) when is_map(O) ->
+    apply1({{M, F}, A}, O).
 
-apply(Mode, OutputFile, M, F, A) ->
-    apply1(Mode, OutputFile, {{M, F}, A}).
-
-apply1(Mode, OutputFile, {Fun, Args}) ->
+apply1({Fun, Args}, Options) ->
     Tracer = spawn_tracer(),
+    #{timeout := Timeout, mode := Mode, output_file := OutputFile} = maps:merge(?DEFAULT_OPTIONS, Options),
 
     start_trace(Tracer, self(), Mode),
     Return = (catch apply_fun(Fun, Args)),
-    {ok, Bytes} = stop_trace(Tracer, self()),
+    {ok, Bytes} = stop_trace(Tracer, self(), Timeout),
 
     ok = file:write_file(OutputFile, Bytes),
     Return.
@@ -44,12 +45,12 @@ start_trace(Tracer, Target, Mode) ->
     erlang:trace(Target, true, [{tracer, Tracer} | trace_flags(Mode)]),
     ok.
 
-stop_trace(Tracer, Target) ->
+stop_trace(Tracer, Target, Timeout) ->
     erlang:trace(Target, false, [all]),
     Tracer ! {dump_bytes, self()},
 
     Ret = receive {bytes, B} -> {ok, B}
-    after 5000 -> {error, timeout}
+    after Timeout -> {error, timeout}
     end,
 
     exit(Tracer, normal),
